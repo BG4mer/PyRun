@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PyRun — Python editor (Pyodide) for GitHub Pages</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <style>
+    :root{--bg:#0b0c0d;--panel:#0f1113;--muted:#9aa0a6;--accent:#1db954}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#050506,#0b0b0d);color:#e9eef0;font-family:Inter,system-ui,Arial}
+    .wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;max-width:1300px;margin:18px auto;padding:12px}
+    header{grid-column:1/-1;display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#202238,#0b0b0d);display:flex;align-items:center;justify-content:center;font-weight:700}
+    .panel{background:var(--panel);padding:12px;border-radius:12px}
+    .editor{height:560px;border-radius:8px;overflow:hidden}
+    .sidebar{display:flex;flex-direction:column;gap:8px}
+    .row{display:flex;gap:8px}
+    button{background:#161719;padding:8px 10px;border-radius:8px;border:none;color:#fff;cursor:pointer}
+    .primary{background:linear-gradient(90deg,var(--accent),#0ea5a7);color:#021}
+    textarea{width:100%;height:120px;background:#020203;color:#e9eef0;border-radius:8px;padding:8px;border:1px solid #111}
+    pre#output{height:160px;overflow:auto;background:#020203;padding:8px;border-radius:8px;border:1px solid #111;color:#cfe7d6}
+    .files{height:240px;overflow:auto;padding:6px;background:#070708;border-radius:8px;border:1px solid #111}
+    label{color:var(--muted);font-size:13px}
+    footer{grid-column:1/-1;color:var(--muted);font-size:13px;text-align:center;margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">Py</div>
+      <div>
+        <h2 style="margin:0">PyRun — Python editor (Pyodide) for GitHub Pages</h2>
+        <div style="color:var(--muted);font-size:13px">Client-side Python using Pyodide. Drop into a Pages repo and enable Pages on branch main.</div>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="row" style="margin-bottom:8px">
+        <button id="runBtn" class="primary">Run</button>
+        <button id="clearBtn">Clear output</button>
+        <button id="saveBtn">Save file</button>
+        <button id="newBtn">New file</button>
+        <button id="zipBtn">Download files ZIP</button>
+        <select id="filesSelect" style="margin-left:auto"></select>
+      </div>
+
+      <div id="editor" class="editor"></div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1">
+          <label>Output</label>
+          <pre id="output">Not loaded yet. Click Run after Pyodide finishes loading.</pre>
+        </div>
+        <div style="width:300px">
+          <label>Files</label>
+          <div class="files" id="fileList"></div>
+          <label style="margin-top:6px">New filename</label>
+          <input id="fileName" placeholder="script.py" style="width:100%;padding:6px;border-radius:6px;border:1px solid #111;background:#070708;color:#e9eef0">
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel sidebar">
+      <div>
+        <label>Preload example scripts</label>
+        <div class="row" style="margin-top:8px">
+          <button id="ex1">WAV → DWP packager</button>
+          <button id="ex2">Hello, Pyodide</button>
+        </div>
+      </div>
+
+      <div>
+        <label>Python packages (Pyodide)</label>
+        <div class="row" style="margin-top:8px">
+          <input id="pkgInput" placeholder="micropip install name" style="flex:1;padding:6px;border-radius:6px;border:1px solid #111;background:#070708;color:#e9eef0">
+          <button id="pkgBtn">Install</button>
+        </div>
+        <div style="color:var(--muted);font-size:12px;margin-top:6px">Note: large packages may take time. Pyodide caches in the session.</div>
+      </div>
+
+      <div>
+        <label>Shortcuts</label>
+        <ul style="color:var(--muted);font-size:13px;margin:6px 0;padding-left:18px">
+          <li>Run: Ctrl+Enter</li>
+          <li>Save: Ctrl+S</li>
+        </ul>
+      </div>
+
+      <div style="margin-top:auto;color:var(--muted);font-size:12px">Ready for GitHub Pages: add files to repo root and enable Pages on branch main.</div>
+    </aside>
+
+    <footer>Pyodide runtime is loaded from the official CDN. This page is fully client-side and works on GitHub Pages.</footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    // Simple CodeMirror-based editor + Pyodide integration
+    const editor = CodeMirror(document.getElementById('editor'), {
+      value: '# Hello\nprint("pyodide ready")\n',
+      mode: 'python',
+      lineNumbers: true,
+      theme: 'default'
+    });
+
+    const output = document.getElementById('output');
+    const fileList = document.getElementById('fileList');
+    const filesSelect = document.getElementById('filesSelect');
+    const fileNameInput = document.getElementById('fileName');
+
+    let pyodide = null;
+    let FS = null;
+
+    async function loadPyodideAndPackages(){
+      output.innerText = 'Loading Pyodide...';
+      pyodide = await loadPyodide({indexURL:'https://cdn.jsdelivr.net/pyodide/v0.23.4/full/'});
+      FS = pyodide.FS;
+      output.innerText = 'Pyodide loaded. Ready.';
+      FS.mkdir('/data');
+      FS.mount(pyodide.FS.filesystems.NODEFS, {root: '/'}, '/hostfs'); // try but may not be available on Pages
+      refreshFileList();
+    }
+
+    loadPyodideAndPackages();
+
+    function logToOutput(txt){ output.innerText += '\n' + txt; output.scrollTop = output.scrollHeight; }
+
+    async function runCode(){
+      if(!pyodide){ alert('Pyodide still loading'); return; }
+      const code = editor.getValue();
+      output.innerText = 'Running...';
+      try{
+        // provide a basic print capture
+        await pyodide.runPythonAsync(`import sys\nfrom js import console\n`);
+        pyodide.globals.set('___capture_output', (s)=>{ logToOutput(String(s)); });
+        // monkeypatch print to forward to JS
+        const wrapper = `import builtins\nold_print=builtins.print\n\ndef _p(*a, **k):\n    builtins.print(*a, **k)\n\n`;
+        // run user code
+        await pyodide.runPythonAsync(code);
+        logToOutput('Finished.');
+      } catch(err){
+        logToOutput('Error: ' + err);
+      }
+    }
+
+    document.getElementById('runBtn').addEventListener('click', runCode);
+    document.getElementById('clearBtn').addEventListener('click', ()=> output.innerText='');
+
+    // File helpers: write and read from pyodide FS
+    function refreshFileList(){
+      if(!FS) return;
+      let files = [];
+      try{ files = FS.readdir('/'); }catch(e){ files = []; }
+      // show only user-created files in /data if available
+      let target = '/';
+      try{ if(FS.stat('/data')) target='/data'; }catch(e){ target='/'; }
+      let list = [];
+      try{ list = FS.readdir(target).filter(n=>n!=='.'&&n!=='..'); }catch(e){ list=[]; }
+      fileList.innerHTML = list.map(n=>`<div style="display:flex;justify-content:space-between;padding:4px 2px"><span>${n}</span><span><button data-name="${n}" class="loadFile">load</button> <button data-name="${n}" class="delFile">del</button></span></div>`).join('') || '<div style="color:var(--muted)">No files</div>';
+      filesSelect.innerHTML = '<option value="">Select file</option>' + list.map(n=>`<option>${n}</option>`).join('');
+      // attach events
+      document.querySelectorAll('.loadFile').forEach(b=> b.onclick = (e)=>{ const n=e.target.dataset.name; try{ const content = FS.readFile((target==='/'?'/':target)+n, {encoding:'utf8'}); editor.setValue(content); fileNameInput.value = n; }catch(er){ alert('Failed to load: '+er);} });
+      document.querySelectorAll('.delFile').forEach(b=> b.onclick = (e)=>{ const n=e.target.dataset.name; try{ FS.unlink((target==='/'?'/':target)+n); refreshFileList(); }catch(er){ alert('Failed to delete: '+er);} });
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', ()=>{
+      if(!FS) return alert('Pyodide not ready');
+      const name = (fileNameInput.value||'script.py').trim();
+      const content = editor.getValue();
+      try{
+        const path = '/data/' + name;
+        try{ FS.mkdir('/data'); }catch(e){}
+        FS.writeFile(path, content, {encoding:'utf8'});
+        refreshFileList();
+        alert('Saved ' + path);
+      }catch(e){ alert('Save failed: '+e); }
+    });
+
+    document.getElementById('newBtn').addEventListener('click', ()=>{ editor.setValue('# new file\n'); fileNameInput.value = 'script.py'; });
+
+    document.getElementById('filesSelect').addEventListener('change', (e)=>{ const v=e.target.value; if(v){ try{ const content = FS.readFile('/data/'+v,{encoding:'utf8'}); editor.setValue(content); fileNameInput.value = v;}catch(e){alert(e);} }});
+
+    document.getElementById('zipBtn').addEventListener('click', async ()=>{
+      if(!FS) return alert('Pyodide not ready');
+      const zip = new JSZip();
+      let list = [];
+      try{ list = FS.readdir('/data').filter(n=>n!=='.'&&n!=='..'); }catch(e){ list=[]; }
+      for(const f of list){ try{ const data = FS.readFile('/data/'+f); zip.file(f, data); }catch(e){} }
+      const blob = await zip.generateAsync({type:'blob'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'py-files.zip'; a.click();
+    });
+
+    document.getElementById('ex1').addEventListener('click', ()=>{
+      const code = `# minimal WAV -> DWP packager placeholder\nprint('This is a stub for the wav->dwp packager')\n`;
+      editor.setValue(code); fileNameInput.value='wav_to_dwp.py';
+    });
+    document.getElementById('ex2').addEventListener('click', ()=>{ editor.setValue("print('hello from pyodide')\n"); fileNameInput.value='hello.py'; });
+
+    document.getElementById('pkgBtn').addEventListener('click', async ()=>{
+      const pkg = document.getElementById('pkgInput').value.trim(); if(!pkg) return;
+      try{ output.innerText = 'Installing ' + pkg + '...'; await pyodide.loadPackage('micropip'); const micropip = pyodide.pyimport('micropip'); await micropip.install(pkg); output.innerText = 'Installed ' + pkg; }catch(e){ output.innerText = 'Install failed: '+e; }
+    });
+
+    // keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if((e.ctrlKey||e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runCode(); }
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase() === 's'){ e.preventDefault(); document.getElementById('saveBtn').click(); }
+    });
+
+    // poll for FS availability to refresh file list after pyodide loads
+    setInterval(()=>{ try{ if(pyodide) refreshFileList(); }catch(e){} },1500);
+  </script>
+</body>
+</html>
