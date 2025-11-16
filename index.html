@@ -8,23 +8,130 @@
 <script type="module" src="samplesInDwp.js"></script>
 <script type="module" src="app.js"></script>
 <style>
-body{background:#0b0b0d;color:#fff;font-family:sans-serif;padding:16px}
-button{margin:4px;padding:8px;border-radius:6px;border:none;background:#1db954;color:#000;cursor:pointer}
-#waveform{margin-top:10px;height:160px;background:#000;border-radius:8px;position:relative}
-.marker{position:absolute;width:2px;background:#ff0000;height:100%;cursor:pointer;touch-action:none}
+/* --- Body & Fonts --- */
+body{
+    margin:0;
+    font-family: 'Segoe UI', sans-serif;
+    background:#121212;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:16px;
+}
+
+/* --- Header --- */
+h1{
+    font-size:1.6em;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+/* --- Controls Container --- */
+.controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:16px;
+}
+
+/* --- Buttons --- */
+button{
+    background:#1db954;
+    color:#000;
+    border:none;
+    border-radius:6px;
+    padding:8px 12px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:all 0.2s;
+}
+button:hover{
+    transform:scale(1.05);
+    background:#17c144;
+}
+
+/* --- File Input & Select --- */
+input, select{
+    padding:6px 10px;
+    border-radius:6px;
+    border:none;
+    background:#1e1e1e;
+    color:#fff;
+}
+
+/* --- Waveform Container --- */
+#waveform{
+    width:100%;
+    max-width:800px;
+    height:180px;
+    background:#1e1e1e;
+    border-radius:8px;
+    position:relative;
+    margin-bottom:12px;
+    overflow:hidden;
+    box-shadow:0 4px 10px rgba(0,0,0,0.5);
+}
+
+/* --- Markers --- */
+.marker{
+    position:absolute;
+    width:3px;
+    background:#ff3d3d;
+    height:100%;
+    cursor:pointer;
+    touch-action:none;
+    border-radius:2px;
+}
+
+/* --- Marker Labels --- */
+.marker-label{
+    position:absolute;
+    top:-18px;
+    left:-5px;
+    font-size:0.75em;
+    color:#ff3d3d;
+}
+
+/* --- Marker List --- */
+#markersList{
+    display:block;
+    margin-top:8px;
+    font-size:0.9em;
+    color:#aaa;
+}
+
+/* --- Footer info --- */
+footer{
+    margin-top:24px;
+    font-size:0.8em;
+    color:#555;
+    text-align:center;
+}
 </style>
 </head>
 <body>
+
 <h1>WAV → DWP Chromatic Slicer</h1>
-<input type="file" id="file" accept="audio/wav">
-<select id="mode">
-  <option value="equal">Equal regions</option>
-  <option value="manual">Manual markers</option>
-</select>
-<button id="load">Load</button>
-<button id="play">Play/Pause</button>
-<button id="exportDwp">Export .dwp</button>
+
+<div class="controls">
+    <input type="file" id="file" accept="audio/wav">
+    <select id="mode">
+        <option value="equal">Equal regions</option>
+        <option value="manual">Manual markers</option>
+    </select>
+    <button id="load">Load</button>
+    <button id="play">Play/Pause</button>
+    <button id="exportDwp">Export .dwp</button>
+</div>
+
 <div id="waveform"></div>
-<div>Markers: <span id="markersList">none</span></div>
+<span>Markers: <span id="markersList">none</span></span>
+
+<footer>
+    Made to feel like FL Studio + FL Studio Mobile<br>
+    Drag markers to adjust, double-tap to remove.
+</footer>
+
 </body>
 </html>
