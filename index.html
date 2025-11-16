@@ -1,51 +1,31 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>WAV → DWP - Chromatic Slicer (Frontend)</title>
-  <meta name="description" content="Client-side chromatic slicer + mapper. Export samples and pseudo-DWP package.">
-  <style>
-    :root{--bg:#060607;--panel:#0f1113;--accent:#1db954;--muted:#9aa0a6}
-    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#040405,#0b0b0d);color:#e9eef0;padding:16px}
-    .card{max-width:980px;margin:0 auto;background:var(--panel);padding:14px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
-    h1{margin:0 0 8px 0}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    label{color:var(--muted);font-size:13px}
-    input,select,textarea,button{border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.04);background:#070708;color:#fff}
-    #waveform{height:160px;border-radius:8px;background:#000;margin-top:10px}
-    .btn{cursor:pointer;border:none}
-    .btn.primary{background:linear-gradient(90deg,var(--accent),#0ea5a7);color:#021}
-    .info{color:var(--muted);font-size:13px;margin-top:8px}
-    @media (max-width:800px){ .row{flex-direction:column;align-items:stretch} }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAV → DWP Chromatic Slicer</title>
+<script src="https://unpkg.com/wavesurfer.js"></script>
+<script src="samplesInDwp.js"></script>
+<script src="app.js"></script>
+<style>
+body{background:#0b0b0d;color:#fff;font-family:sans-serif;padding:16px}
+button{margin:4px;padding:8px;border-radius:6px;border:none;background:#1db954;color:#000;cursor:pointer}
+#waveform{margin-top:10px;height:160px;background:#000;border-radius:8px}
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>WAV → DWP — Chromatic Slicer</h1>
-    <div class="row" style="margin-bottom:6px">
-      <label style="min-width:110px">Upload single chromatic WAV</label>
-      <input id="file" type="file" accept="audio/wav"/>
-      <label style="min-width:120px">Mode</label>
-      <select id="mode"><option value="equal">Equal regions</option><option value="silence">Auto-split by silence</option><option value="manual">Manual markers</option></select>
-      <button id="load" class="btn primary">Load</button>
-    </div>
-
-    <div id="waveform"></div>
-
-    <div class="row" style="margin-top:10px">
-      <button id="play" class="btn">Play</button>
-      <button id="addMarker" class="btn">Add marker</button>
-      <button id="clearMarkers" class="btn">Clear markers</button>
-      <button id="split" class="btn primary">Split & Export ZIP (client)</button>
-      <button id="sendBackend" class="btn">Split & Send to Backend</button>
-    </div>
-
-    <div class="info">Markers: <span id="markersList">none</span></div>
-    <div class="info">Tip: Equal mode slices into 60 equal notes (change in code). Manual mode uses user markers. Silence will try to detect gaps (server does it better).</div>
-  </div>
-
-  <script src="https://unpkg.com/wavesurfer.js"></script>
-  <script src="app.js"></script>
+<h1>WAV → DWP Chromatic Slicer</h1>
+<input type="file" id="file" accept="audio/wav">
+<select id="mode">
+  <option value="equal">Equal regions</option>
+  <option value="manual">Manual markers</option>
+</select>
+<button id="load">Load</button>
+<button id="play">Play/Pause</button>
+<button id="addMarker">Add marker</button>
+<button id="clearMarkers">Clear markers</button>
+<button id="exportDwp">Export .dwp with samples</button>
+<div id="waveform"></div>
+<div>Markers: <span id="markersList">none</span></div>
 </body>
 </html>
