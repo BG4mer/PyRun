@@ -7,56 +7,185 @@
 <script src="https://unpkg.com/wavesurfer.js"></script>
 <script type="module" src="app.js"></script>
 <style>
-body{
-    margin:0;
-    font-family: 'Segoe UI', sans-serif;
-    background:#121212;
-    color:#fff;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    padding:16px;
+/* --- Body & Fonts --- */
+body {
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background:#121212;
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:12px;
 }
-h1{ font-size:1.6em; margin-bottom:8px; }
-.controls{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+
+/* --- Header --- */
+h1{
+  font-size:1.8em;
+  font-weight:bold;
+  margin-bottom:10px;
+  color:#1db954;
+  text-shadow:0 0 8px #1db95466;
+}
+
+/* --- Main container --- */
+.container {
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  max-width:900px;
+  gap:12px;
+}
+
+/* --- Controls Panel --- */
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  background:#1e1e1e;
+  border-radius:8px;
+  padding:10px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.5);
+}
+
 button{
-    background:#1db954; color:#000; border:none; border-radius:6px;
-    padding:8px 12px; font-weight:bold; cursor:pointer; transition:all 0.2s;
+  background:#1db954;
+  color:#000;
+  border:none;
+  border-radius:6px;
+  padding:8px 14px;
+  font-weight:bold;
+  cursor:pointer;
+  transition:all 0.2s;
+  flex:1 1 auto;
 }
 button:hover{ transform:scale(1.05); background:#17c144; }
-input, select{ padding:6px 10px; border-radius:6px; border:none; background:#1e1e1e; color:#fff; }
-#waveform{ width:100%; max-width:800px; height:180px; background:#1e1e1e; border-radius:8px; position:relative; margin-bottom:12px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.5);}
-.marker{ position:absolute; width:3px; background:#ff3d3d; height:100%; cursor:pointer; touch-action:none; border-radius:2px; }
-.marker-label{ position:absolute; top:-18px; left:-5px; font-size:0.75em; color:#ff3d3d; }
-#markersList{ display:block; margin-top:8px; font-size:0.9em; color:#aaa; }
-footer{ margin-top:24px; font-size:0.8em; color:#555; text-align:center; }
+button:active{ transform:scale(0.95); }
+
+/* --- File Input & Select --- */
+input, select{
+  padding:6px 10px;
+  border-radius:6px;
+  border:none;
+  background:#2a2a2a;
+  color:#fff;
+  flex:1 1 auto;
+}
+
+/* --- Waveform Panel --- */
+#waveform-container{
+  position:relative;
+  width:100%;
+  background:#1e1e1e;
+  border-radius:10px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.5);
+  overflow:hidden;
+  height:220px;
+  display:flex;
+  flex-direction:column;
+}
+
+/* --- Zoom Slider --- */
+#zoom-slider{
+  margin:4px 8px;
+  width:calc(100% - 16px);
+}
+
+/* --- Waveform --- */
+#waveform{
+  flex:1;
+  position:relative;
+}
+
+/* --- Marker --- */
+.marker{
+  position:absolute;
+  width:3px;
+  background:#ff3d3d;
+  height:100%;
+  cursor:pointer;
+  touch-action:none;
+  border-radius:2px;
+}
+.marker-label{
+  position:absolute;
+  top:-20px;
+  left:-8px;
+  font-size:0.75em;
+  color:#ff3d3d;
+  text-shadow:0 0 4px #ff3d3d66;
+}
+
+/* --- Marker List Panel --- */
+#marker-panel{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  background:#1a1a1a;
+  padding:6px;
+  border-radius:6px;
+  max-height:80px;
+  overflow-y:auto;
+}
+.marker-item{
+  background:#2a2a2a;
+  padding:4px 8px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:0.8em;
+  transition:0.2s;
+}
+.marker-item:hover{ background:#1db95433; }
+
+/* --- Footer --- */
+footer{
+  margin-top:16px;
+  font-size:0.8em;
+  color:#555;
+  text-align:center;
+  line-height:1.4;
+}
 </style>
 </head>
 <body>
 
 <h1>WAV → DWP Chromatic Slicer</h1>
 
-<div class="controls">
+<div class="container">
+
+  <!-- Controls -->
+  <div class="controls">
     <input type="file" id="file" accept="audio/wav">
     <select id="mode">
-        <option value="equal">Auto Slice</option>
-        <option value="manual">Manual Markers</option>
+      <option value="equal">Auto Slice</option>
+      <option value="manual">Manual Markers</option>
     </select>
     <select id="notesMode">
-        <option value="chromatic">Chromatic Notes</option>
-        <option value="velocityLayers">Velocity Layers</option>
+      <option value="chromatic">Chromatic Notes</option>
+      <option value="velocityLayers">Velocity Layers</option>
     </select>
     <button id="load">Load</button>
     <button id="play">Play/Pause</button>
     <button id="exportDwp">Export .dwp</button>
+  </div>
+
+  <!-- Waveform -->
+  <div id="waveform-container">
+    <input type="range" id="zoom-slider" min="0" max="200" value="0">
+    <div id="waveform"></div>
+  </div>
+
+  <!-- Marker Panel -->
+  <div id="marker-panel">
+    <!-- Clickable marker items appear here -->
+  </div>
+
 </div>
 
-<div id="waveform"></div>
-<span>Markers: <span id="markersList">none</span></span>
-
 <footer>
-    Drag markers to adjust, double-tap to remove. Auto Slice splits waveform evenly.<br>
-    Notes Mode: Chromatic = each slice gets one note; Velocity Layers = multiple velocities per slice.
+  Drag markers to adjust, double-tap to remove. Auto Slice splits waveform evenly.<br>
+  Notes Mode: Chromatic = each slice gets one note; Velocity Layers = multiple velocities per slice.<br>
+  Zoom waveform with slider, click marker items to jump to that position.
 </footer>
 
 </body>
