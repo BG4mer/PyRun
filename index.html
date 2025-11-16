@@ -1,192 +1,163 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WAV → DWP Chromatic Slicer</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WAV → DWP — Ultra Studio MAX (Sky's the Limit)</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://unpkg.com/wavesurfer.js"></script>
-<script type="module" src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <style>
-/* --- Body & Fonts --- */
-body {
-  margin:0;
-  font-family:'Segoe UI',sans-serif;
-  background:#121212;
-  color:#fff;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  padding:12px;
-}
-
-/* --- Header --- */
-h1{
-  font-size:1.8em;
-  font-weight:bold;
-  margin-bottom:10px;
-  color:#1db954;
-  text-shadow:0 0 8px #1db95466;
-}
-
-/* --- Main container --- */
-.container {
-  display:flex;
-  flex-direction:column;
-  width:100%;
-  max-width:900px;
-  gap:12px;
-}
-
-/* --- Controls Panel --- */
-.controls{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  background:#1e1e1e;
-  border-radius:8px;
-  padding:10px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.5);
-}
-
-button{
-  background:#1db954;
-  color:#000;
-  border:none;
-  border-radius:6px;
-  padding:8px 14px;
-  font-weight:bold;
-  cursor:pointer;
-  transition:all 0.2s;
-  flex:1 1 auto;
-}
-button:hover{ transform:scale(1.05); background:#17c144; }
-button:active{ transform:scale(0.95); }
-
-/* --- File Input & Select --- */
-input, select{
-  padding:6px 10px;
-  border-radius:6px;
-  border:none;
-  background:#2a2a2a;
-  color:#fff;
-  flex:1 1 auto;
-}
-
-/* --- Waveform Panel --- */
-#waveform-container{
-  position:relative;
-  width:100%;
-  background:#1e1e1e;
-  border-radius:10px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.5);
-  overflow:hidden;
-  height:220px;
-  display:flex;
-  flex-direction:column;
-}
-
-/* --- Zoom Slider --- */
-#zoom-slider{
-  margin:4px 8px;
-  width:calc(100% - 16px);
-}
-
-/* --- Waveform --- */
-#waveform{
-  flex:1;
-  position:relative;
-}
-
-/* --- Marker --- */
-.marker{
-  position:absolute;
-  width:3px;
-  background:#ff3d3d;
-  height:100%;
-  cursor:pointer;
-  touch-action:none;
-  border-radius:2px;
-}
-.marker-label{
-  position:absolute;
-  top:-20px;
-  left:-8px;
-  font-size:0.75em;
-  color:#ff3d3d;
-  text-shadow:0 0 4px #ff3d3d66;
-}
-
-/* --- Marker List Panel --- */
-#marker-panel{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  background:#1a1a1a;
-  padding:6px;
-  border-radius:6px;
-  max-height:80px;
-  overflow-y:auto;
-}
-.marker-item{
-  background:#2a2a2a;
-  padding:4px 8px;
-  border-radius:4px;
-  cursor:pointer;
-  font-size:0.8em;
-  transition:0.2s;
-}
-.marker-item:hover{ background:#1db95433; }
-
-/* --- Footer --- */
-footer{
-  margin-top:16px;
-  font-size:0.8em;
-  color:#555;
-  text-align:center;
-  line-height:1.4;
-}
+:root{--bg:#070809;--panel:#0f1113;--muted:#9aa0a6;--accent:#1db954;--danger:#ff3d3d}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Arial;background:linear-gradient(180deg,#050607,#0c0d0f);color:#e9eef0}
+.app{max-width:1280px;margin:12px auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;gap:12px}
+.logo{width:48px;height:48;border-radius:10px;background:linear-gradient(135deg,#122a1b,#06332b);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--accent)}
+.title{font-weight:800;font-size:1.15rem}
+.toolbar{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{background:var(--panel);border-radius:10px;padding:8px 10px;border:1px solid rgba(255,255,255,0.03);cursor:pointer;color:#eaf6f0}
+.btn.primary{background:linear-gradient(90deg,var(--accent),#0ea5a7);color:#021}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.work{display:grid;grid-template-columns:300px 1fr;gap:12px}
+.left{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--panel);border-radius:12px;padding:12px;box-shadow:0 8px 36px rgba(0,0,0,0.6)}
+.small{font-size:13px;color:var(--muted)}
+.input, select{background:#0b0c0d;border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.03);color:#fff}
+#wavewrap{position:relative;height:460px;border-radius:12px;overflow:hidden;background:#0b0c0d;display:flex;flex-direction:column}
+#wave{height:300px}
+#grid{position:absolute;inset:0;pointer-events:none;opacity:0.06}
+.preview-line{position:absolute;width:2px;background:rgba(29,185,84,0.5);height:100%;transform:translateX(-1px);pointer-events:none}
+.marker{position:absolute;top:0;width:4px;border-radius:2px;cursor:pointer;box-shadow:0 0 10px rgba(0,0,0,0.6)}
+.marker-label{position:absolute;top:-22px;left:-10px;font-size:12px;background:rgba(0,0,0,0.5);padding:4px 8px;border-radius:8px;color:var(--muted)}
+.marker.selected{outline:3px solid rgba(29,185,84,0.12);transform:scaleY(1.12)}
+#marker-panel{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding:6px}
+.marker-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:8px;background:#0f1114;border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+.marker-item .meta{color:var(--muted);font-size:12px;margin-left:auto}
+.keyboard{display:flex;gap:4px;margin-top:8px}
+.key{width:28px;height:36px;border-radius:6px;background:#0e0f11;border:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:center;font-size:12px;color:#ddd;user-select:none}
+.velocity-lane{height:80px;background:linear-gradient(180deg,#101214,#0b0b0d);border-radius:8px;padding:8px;display:flex;align-items:end;gap:4px;overflow:hidden}
+.vel-bar{width:8px;border-radius:4px;transition:all .12s}
+.footer{color:var(--muted);font-size:13px;text-align:center;margin-top:6px}
+.progress{position:fixed;left:50%;top:12%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:12px;border-radius:10px;display:none;min-width:260px;border:1px solid rgba(255,255,255,0.04)}
+.progress .bar{height:10px;background:#151617;border-radius:6px;margin-top:8px;overflow:hidden}
+.progress .bar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#0ea5a7)}
+.grid-overlay{position:absolute;inset:0;pointer-events:none}
+.info-row{display:flex;gap:8px;align-items:center}
+.right-align{margin-left:auto}
+.file-drop{border:2px dashed rgba(255,255,255,0.03);padding:10px;border-radius:8px;text-align:center;color:var(--muted)}
+@media (max-width:980px){.work{grid-template-columns:1fr}.left{order:2}}
 </style>
 </head>
 <body>
+  <div class="app">
+    <div class="top">
+      <div class="logo">FL</div>
+      <div class="title">WAV → DWP — Ultra Studio MAX (Sky's the Limit)</div>
+      <div class="toolbar">
+        <button class="btn" id="undo" title="Undo (Ctrl+Z)"><i class="fa fa-rotate-left"></i></button>
+        <button class="btn" id="redo" title="Redo (Ctrl+Y)"><i class="fa fa-rotate-right"></i></button>
+        <select id="snap" class="btn small">
+          <option value="none">No snap</option>
+          <option value="grid">Grid snap</option>
+          <option value="beat">Beat snap</option>
+        </select>
+        <input id="autoCount" class="input small" style="width:68px" value="60" />
+        <button class="btn" id="autoDetect">Detect Onsets</button>
+        <button class="btn" id="autoPreview">Auto Preview</button>
+        <button class="btn" id="exportAll">Export .dwp.zip</button>
+      </div>
+    </div>
 
-<h1>WAV → DWP Chromatic Slicer</h1>
+    <div class="controls">
+      <div class="file-row" style="flex:1">
+        <div style="flex:1">
+          <div class="file-drop" id="fileDrop">Drop WAV here or 
+            <input id="file" type="file" accept="audio/wav" style="display:inline-block;margin-left:8px" />
+          </div>
+        </div>
+        <div style="width:300px">
+          <div class="info-row" style="margin-bottom:6px">
+            <select id="mode" class="input">
+              <option value="equal">Auto Slice (Equal)</option>
+              <option value="manual">Manual</option>
+            </select>
+            <select id="notesMode" class="input">
+              <option value="chromatic">Chromatic</option>
+              <option value="velocityLayers">Velocity Layers</option>
+            </select>
+            <input id="crossfadeMs" class="input" style="width:90px" value="12" />
+            <div class="small">crossfade ms</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" id="normalize">Normalize</button>
+            <button class="btn" id="detectOnsets">Onset Auto-Slice</button>
+            <button class="btn" id="applyCrossfade">Apply Crossfade</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<div class="container">
+    <div class="work">
+      <div class="left">
+        <div class="panel">
+          <div class="small">Marker & Zone List</div>
+          <div id="markerList" style="margin-top:8px;max-height:300px;overflow:auto"></div>
+          <div style="height:10px"></div>
+          <div class="small">Piano / Map</div>
+          <div id="keyboard" class="keyboard"></div>
+          <div style="height:8px"></div>
+          <div class="small">Velocity Lane</div>
+          <div id="velocityLane" class="velocity-lane"></div>
+        </div>
 
-  <!-- Controls -->
-  <div class="controls">
-    <input type="file" id="file" accept="audio/wav">
-    <select id="mode">
-      <option value="equal">Auto Slice</option>
-      <option value="manual">Manual Markers</option>
-    </select>
-    <select id="notesMode">
-      <option value="chromatic">Chromatic Notes</option>
-      <option value="velocityLayers">Velocity Layers</option>
-    </select>
-    <button id="load">Load</button>
-    <button id="play">Play/Pause</button>
-    <button id="exportDwp">Export .dwp</button>
+        <div class="panel">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn" id="saveProj">Save Project</button>
+            <button class="btn" id="loadProj">Load Project</button>
+            <button class="btn" id="shareProj">Share (copy JSON)</button>
+          </div>
+          <div style="height:8px"></div>
+          <div class="small">Project Autosave: enabled</div>
+        </div>
+      </div>
+
+      <div>
+        <div id="wavewrap" class="panel">
+          <div style="display:flex;align-items:center;gap:10px;padding:6px">
+            <div class="small">Zoom</div>
+            <input id="zoom" type="range" min="0" max="300" value="0" style="flex:1" />
+            <div style="width:8px"></div>
+            <div class="small">Grid</div>
+            <input id="gridSize" type="number" value="16" class="input" style="width:80px" />
+            <div style="width:8px"></div>
+            <div class="small">Snap</div>
+            <select id="snap2" class="input">
+              <option value="none">none</option>
+              <option value="quarter">quarter</option>
+              <option value="eighth">eighth</option>
+            </select>
+          </div>
+
+          <div id="wave"></div>
+          <div id="grid"></div>
+        </div>
+
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <div class="small">Markers: <span id="markersCount">0</span></div>
+          <div style="flex:1"></div>
+          <div class="small">Crossfade: <span id="currXfade">12ms</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Mega upgrade live: onset detection, crossfades, loop editor, velocity layers, piano-roll mapping, normalize, and shareable JSON. Export contains WAVs + DWP container. Need server-side official DirectWave conversion? I can add automated backend linking next.</div>
   </div>
 
-  <!-- Waveform -->
-  <div id="waveform-container">
-    <input type="range" id="zoom-slider" min="0" max="200" value="0">
-    <div id="waveform"></div>
-  </div>
+  <div id="progress" class="progress"><div id="progressText">Working…</div><div class="bar"><i id="progressFill"></i></div></div>
 
-  <!-- Marker Panel -->
-  <div id="marker-panel">
-    <!-- Clickable marker items appear here -->
-  </div>
-
-</div>
-
-<footer>
-  Drag markers to adjust, double-tap to remove. Auto Slice splits waveform evenly.<br>
-  Notes Mode: Chromatic = each slice gets one note; Velocity Layers = multiple velocities per slice.<br>
-  Zoom waveform with slider, click marker items to jump to that position.
-</footer>
-
+  <script type="module" src="app.js"></script>
 </body>
 </html>
