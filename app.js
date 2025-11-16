@@ -3,8 +3,6 @@ import { addSample, clearSamples, getSamples } from './samplesInDwp.js';
 const fileInput = document.getElementById('file');
 const loadBtn = document.getElementById('load');
 const playBtn = document.getElementById('play');
-const addMarkerBtn = document.getElementById('addMarker');
-const clearMarkersBtn = document.getElementById('clearMarkers');
 const exportDwpBtn = document.getElementById('exportDwp');
 const markersList = document.getElementById('markersList');
 const waveformDiv = document.getElementById('waveform');
@@ -16,78 +14,63 @@ let wavesurfer = WaveSurfer.create({
     height:140,
     scrollParent:true
 });
-let audioFile = null;
-let markers = []; // seconds
 
-// Load audio
+let audioFile = null;
+let markers = []; // {time, el} objects
+let draggedMarker = null;
+
+// --- LOAD AUDIO ---
 loadBtn.addEventListener('click', ()=>{
     const f = fileInput.files[0];
     if(!f) return alert('Select a file');
     audioFile = f;
     clearSamples();
+    markers.forEach(m=>m.el.remove());
     markers = [];
-    markersList.textContent = 'none';
+    renderMarkers();
     wavesurfer.load(URL.createObjectURL(f));
 });
 
-// Play/pause
+// --- PLAY ---
 playBtn.addEventListener('click', ()=>{ wavesurfer.playPause(); });
 
-// Render markers list
+// --- MARKERS ---
 function renderMarkers(){
-    markersList.textContent = markers.length ? markers.map(m=>m.toFixed(2)+'s').join(', ') : 'none';
+    markersList.textContent = markers.length ? markers.map(m=>m.time.toFixed(2)+'s').join(', ') : 'none';
 }
 
-// Add marker
-function addMarkerAt(time){
-    markers.push(time);
-    markers.sort((a,b)=>a-b);
+function addMarker(time){
+    const el = document.createElement('div');
+    el.classList.add('marker');
+    waveformDiv.appendChild(el);
+    const updatePos = ()=>{ el.style.left = (time/wavesurfer.getDuration()*100)+'%'; }
+    updatePos();
+    el.addEventListener('pointerdown', e=>{
+        draggedMarker = {marker:{time, el}, offsetX:e.clientX};
+        e.preventDefault();
+    });
+    el.addEventListener('dblclick', ()=>{
+        el.remove();
+        markers = markers.filter(m=>m.el!==el);
+        renderMarkers();
+    });
+    markers.push({time, el});
     renderMarkers();
 }
 
-// Clear markers
-clearMarkersBtn.addEventListener('click', ()=>{
-    markers=[];
+waveformDiv.addEventListener('pointermove', e=>{
+    if(!draggedMarker) return;
+    const dx = e.clientX - draggedMarker.offsetX;
+    const width = waveformDiv.clientWidth;
+    let newTime = draggedMarker.marker.time + dx/wavesurfer.clientWidth*wavesurfer.getDuration();
+    newTime = Math.max(0, Math.min(newTime, wavesurfer.getDuration()));
+    draggedMarker.marker.time = newTime;
+    draggedMarker.marker.el.style.left = (newTime/wavesurfer.getDuration()*100)+'%';
     renderMarkers();
 });
 
-// Add marker via button
-addMarkerBtn.addEventListener('click', ()=>{ addMarkerAt(wavesurfer.getCurrentTime()); });
-
-// --- MOBILE TOUCH GESTURES ---
-let isDragging = false;
-let dragIndex = -1;
-
-waveformDiv.addEventListener('touchstart', e=>{
-    if(!wavesurfer.isReady) return;
-    const touch = e.touches[0];
-    const rect = waveformDiv.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const time = (x / rect.width) * wavesurfer.getDuration();
-
-    // Check if near existing marker
-    dragIndex = markers.findIndex(m=>Math.abs(m-time)<0.2);
-    if(dragIndex===-1){
-        addMarkerAt(time); // new marker
-    } else {
-        isDragging = true;
-    }
-});
-
-waveformDiv.addEventListener('touchmove', e=>{
-    if(!isDragging || dragIndex===-1) return;
-    const touch = e.touches[0];
-    const rect = waveformDiv.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const time = Math.max(0, Math.min(time = (x / rect.width) * wavesurfer.getDuration(), wavesurfer.getDuration()));
-    markers[dragIndex] = time;
-    markers.sort((a,b)=>a-b);
-    renderMarkers();
-});
-
-waveformDiv.addEventListener('touchend', e=>{
-    isDragging = false;
-    dragIndex = -1;
+window.addEventListener('pointerup', ()=>{
+    draggedMarker = null;
 });
 
 // --- WAV SLICING ---
@@ -100,7 +83,7 @@ function audioBufferToWavBlob(buffer, start=0, end=null){
     const tmp = new Float32Array(len*ch);
     for(let c=0;c<ch;c++){
         const cd = buffer.getChannelData(c);
-        for(let i=0;i<len;i++){ tmp[i*ch+c] = cd[s+i]; }
+        for(let i=0;i<len;i++) tmp[i*ch+c] = cd[s+i];
     }
     const buf = new ArrayBuffer(44 + tmp.length*2);
     const view = new DataView(buf);
@@ -119,22 +102,23 @@ function audioBufferToWavBlob(buffer, start=0, end=null){
     return new Blob([view], {type:'audio/wav'});
 }
 
-// Slice audio and add to memory
 async function sliceAudioAndAdd(){
     if(!audioFile) return;
     const ab = await audioFile.arrayBuffer();
     const ctx = new (window.OfflineAudioContext||window.AudioContext)(1,1,44100);
     const decoded = await ctx.decodeAudioData(ab.slice(0));
-    const points = (markers.length>0?markers:[...Array(60)].map((_,i)=>i*decoded.duration/60));
+    let points = markers.map(m=>m.time).sort((a,b)=>a-b);
+    if(points.length===0){
+        points = [...Array(60)].map((_,i)=>i*decoded.duration/60);
+    }
     points.push(decoded.duration);
     for(let i=0;i<points.length-1;i++){
         const blob = audioBufferToWavBlob(decoded, points[i], points[i+1]);
-        const name = `sample_${i}.wav`;
-        addSample(name, blob);
+        addSample(`sample_${i}.wav`, blob);
     }
 }
 
-// Export DWP with embedded WAVs
+// --- EXPORT DWP ---
 exportDwpBtn.addEventListener('click', async ()=>{
     await sliceAudioAndAdd();
     const samples = getSamples();
