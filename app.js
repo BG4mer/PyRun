@@ -6,17 +6,18 @@ const playBtn = document.getElementById('play');
 const exportDwpBtn = document.getElementById('exportDwp');
 const markersList = document.getElementById('markersList');
 const waveformDiv = document.getElementById('waveform');
+const modeSelect = document.getElementById('mode');
 
 let wavesurfer = WaveSurfer.create({
     container: waveformDiv,
     waveColor:'#333',
     progressColor:'#1db954',
-    height:140,
+    height:180,
     scrollParent:true
 });
 
 let audioFile = null;
-let markers = []; // {time, el} objects
+let markers = []; // {time, el, label} objects
 let draggedMarker = null;
 
 // --- LOAD AUDIO ---
@@ -39,38 +40,71 @@ function renderMarkers(){
     markersList.textContent = markers.length ? markers.map(m=>m.time.toFixed(2)+'s').join(', ') : 'none';
 }
 
+// Add a marker at a specific time
 function addMarker(time){
     const el = document.createElement('div');
     el.classList.add('marker');
+    const label = document.createElement('div');
+    label.classList.add('marker-label');
+    label.textContent = time.toFixed(2)+'s';
+    el.appendChild(label);
     waveformDiv.appendChild(el);
-    const updatePos = ()=>{ el.style.left = (time/wavesurfer.getDuration()*100)+'%'; }
+
+    const updatePos = ()=>{
+        el.style.left = (time/wavesurfer.getDuration()*100)+'%';
+        label.textContent = time.toFixed(2)+'s';
+    };
     updatePos();
+
     el.addEventListener('pointerdown', e=>{
-        draggedMarker = {marker:{time, el}, offsetX:e.clientX};
+        draggedMarker = {marker:{time, el, label}, offsetX:e.clientX};
         e.preventDefault();
     });
+
     el.addEventListener('dblclick', ()=>{
         el.remove();
         markers = markers.filter(m=>m.el!==el);
         renderMarkers();
     });
-    markers.push({time, el});
+
+    markers.push({time, el, label});
     renderMarkers();
 }
 
+// Waveform click to add marker
+waveformDiv.addEventListener('pointerdown', e=>{
+    const rect = waveformDiv.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const time = (x / rect.width) * wavesurfer.getDuration();
+    if(modeSelect.value==='manual') addMarker(time);
+});
+
+// Drag markers
 waveformDiv.addEventListener('pointermove', e=>{
     if(!draggedMarker) return;
     const dx = e.clientX - draggedMarker.offsetX;
     const width = waveformDiv.clientWidth;
-    let newTime = draggedMarker.marker.time + dx/wavesurfer.clientWidth*wavesurfer.getDuration();
+    let newTime = draggedMarker.marker.time + dx/width*wavesurfer.getDuration();
     newTime = Math.max(0, Math.min(newTime, wavesurfer.getDuration()));
     draggedMarker.marker.time = newTime;
     draggedMarker.marker.el.style.left = (newTime/wavesurfer.getDuration()*100)+'%';
+    draggedMarker.marker.label.textContent = newTime.toFixed(2)+'s';
     renderMarkers();
 });
 
 window.addEventListener('pointerup', ()=>{
     draggedMarker = null;
+});
+
+// --- AUTO SLICE ---
+wavesurfer.on('ready', ()=>{
+    if(modeSelect.value==='equal'){
+        const slices = 60; // default number of auto slices
+        const step = wavesurfer.getDuration()/slices;
+        for(let i=1;i<slices;i++){
+            addMarker(i*step);
+        }
+    }
 });
 
 // --- WAV SLICING ---
@@ -89,7 +123,7 @@ function audioBufferToWavBlob(buffer, start=0, end=null){
     const view = new DataView(buf);
     function wstr(v,o,str){ for(let i=0;i<str.length;i++) view.setUint8(o+i,str.charCodeAt(i)); }
     wstr(view,0,'RIFF'); view.setUint32(4,36+tmp.length*2,true);
-    wstr(view,8,'WAVE'); wstr(view,12,'fmt '); view.setUint32(16,16,true);
+    wstr(view,8,'WAVE'); wstr(view,12,'fmt '); wstr(view,16,16,true);
     view.setUint16(20,1,true); view.setUint16(22,ch,true); view.setUint32(24,sampleRate,true);
     view.setUint32(28,sampleRate*ch*2,true); view.setUint16(32,ch*2,true); view.setUint16(34,16,true);
     wstr(view,36,'data'); view.setUint32(40,tmp.length*2,true);
@@ -102,16 +136,19 @@ function audioBufferToWavBlob(buffer, start=0, end=null){
     return new Blob([view], {type:'audio/wav'});
 }
 
+// Slice audio and add samples
 async function sliceAudioAndAdd(){
     if(!audioFile) return;
     const ab = await audioFile.arrayBuffer();
     const ctx = new (window.OfflineAudioContext||window.AudioContext)(1,1,44100);
     const decoded = await ctx.decodeAudioData(ab.slice(0));
-    let points = markers.map(m=>m.time).sort((a,b)=>a-b);
+    const points = markers.map(m=>m.time).sort((a,b)=>a-b);
     if(points.length===0){
-        points = [...Array(60)].map((_,i)=>i*decoded.duration/60);
+        points.push(0, decoded.duration);
+    } else {
+        points.unshift(0);
+        points.push(decoded.duration);
     }
-    points.push(decoded.duration);
     for(let i=0;i<points.length-1;i++){
         const blob = audioBufferToWavBlob(decoded, points[i], points[i+1]);
         addSample(`sample_${i}.wav`, blob);
